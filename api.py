@@ -77,47 +77,59 @@ credentials = AccessTokenCredentials.from_json(credential_text)
 service = build_service(credentials)
 print(service)
 
-result = service.users().messages().list(userId='me').execute()
-msgs = result.get('messages', [])
-for m in msgs:
-    try:
-        #print(m)
+def get_labels(s):
+   labels = s.users().labels().list(userId='me').execute().get('labels')
+   for l in labels:
+       print(l['id'] + ": " + l['name'])
 
-        o = service.users().messages().get(userId='me', id=m['id']).execute()
-        payload = o['payload']
-        subject = [x['value'] for x in o['payload']['headers'] if x['name'] == 'Subject']
 
-        if len(subject) > 0:
-            print("-------------------------")
-            print("Subject: " + subject[0])
-            print("-------------------------")
+#get_labels(service)
 
-    
-            if payload['body']['size'] > 0:
-                print("Body")
-                decoded = base64.b64decode(payload['body']['data'])
-                print(decoded)
-                    
+def get_messages(s):
+    result = service.users().messages().list(userId='me', labelIds='Label_39').execute()
+    msgs = result.get('messages', [])
 
-            for p in payload['parts']:
-                print("Parts")
-                if p['mimeType'] == 'text/plain':
-                    decoded = base64.b64decode(p['body']['data'])
+    for m in msgs:
+        try:
+            #print(m)
+
+            o = service.users().messages().get(userId='me', id=m['id']).execute()
+            print(o)
+            payload = o['payload']
+            subject = [x['value'] for x in o['payload']['headers'] if x['name'] == 'Subject']
+
+            if len(subject) > 0:
+                print("-------------------------")
+                print("Subject: " + subject[0])
+                print("-------------------------")
+
+        
+                if payload['body']['size'] > 0:
+                    print("Body")
+                    decoded = base64.b64decode(payload['body']['data'])
                     print(decoded)
+                        
 
-            #print("Object")
-            #print(o)
-            print()
-            print()
-            
-            #print(m['payload']['body'])
-    except Exception as e:
-        print("error")
-        print(e)
+                for p in payload['parts']:
+                    print("Parts")
+                    if p['mimeType'] == 'text/plain':
+                        decoded = base64.b64decode(p['body']['data'])
+                        print(decoded)
+
+                #print("Object")
+                #print(o)
+                print()
+                print()
+                
+                #print(m['payload']['body'])
+        except Exception as e:
+            print("error")
+            print(e)
 
 
 
 
 
+get_messages(service)
 
 
