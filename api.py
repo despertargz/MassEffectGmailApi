@@ -4,6 +4,7 @@ import httplib2
 import os
 import json
 
+import base64
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
@@ -79,10 +80,40 @@ print(service)
 result = service.users().messages().list(userId='me').execute()
 msgs = result.get('messages', [])
 for m in msgs:
-    print(m)
-    o = service.users().messages().get(userId='me', id=m['id']).execute()
-    print(o)
-    #print(m['payload']['body'])
+    try:
+        #print(m)
+
+        o = service.users().messages().get(userId='me', id=m['id']).execute()
+        payload = o['payload']
+        subject = [x['value'] for x in o['payload']['headers'] if x['name'] == 'Subject']
+
+        if len(subject) > 0:
+            print("-------------------------")
+            print("Subject: " + subject[0])
+            print("-------------------------")
+
+    
+            if payload['body']['size'] > 0:
+                print("Body")
+                decoded = base64.b64decode(payload['body']['data'])
+                print(decoded)
+                    
+
+            for p in payload['parts']:
+                print("Parts")
+                if p['mimeType'] == 'text/plain':
+                    decoded = base64.b64decode(p['body']['data'])
+                    print(decoded)
+
+            #print("Object")
+            #print(o)
+            print()
+            print()
+            
+            #print(m['payload']['body'])
+    except Exception as e:
+        print("error")
+        print(e)
 
 
 
