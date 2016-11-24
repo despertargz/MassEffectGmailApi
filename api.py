@@ -44,7 +44,7 @@ scope = 'https://www.googleapis.com/auth/gmail.readonly'
 #result = get_authorization_url('mev412@gmail.com', 'nope', 'secret.json', scope);
 
 
-authorization_code = '4/o-YylGWRlLRsqUIU9hAmi6Vn_jmPd897N7DVfmSLSk0'
+authorization_code = '4/zvVI49bvFyNB54vfHwVOfl6SbWw1Qwi51aUuofwIchM'
 
 credential_file = 'credentials.json'
 secret_file = 'secret.json'
@@ -58,24 +58,32 @@ flow.params['user_id'] = email_address
 flow.params['state'] = state
 flow.redirect_uri = 'http://googleapi.sonyar.info'
 
+def save_creds():
+    credentials = flow.step2_exchange(authorization_code)
+    f = open(credential_file, 'w')
+    f.write(credentials.to_json())
+    f.close()
+
 # save credentials
-#credentials = flow.step2_exchange(authorization_code)
-#print(credentials.__file__)
-#j = credentials.to_json()
-#print(j)
+#save_creds()
 
-credentials = AccessTokenCredentials.from_json(open(credential_file).read())
-print(credentials)
-#<oauth2client.client.Credentials object at 0x7fa8ca9e1610>
-
+# read credentials
+credential_text = open(credential_file).read()
+credentials = AccessTokenCredentials.from_json(credential_text)
+#print(credentials)
 
 
 service = build_service(credentials)
 print(service)
 
-#threads = service.threads().list(userId='me')
-#for t in threads:
-    #print(t)
+result = service.users().messages().list(userId='me').execute()
+msgs = result.get('messages', [])
+for m in msgs:
+    print(m)
+    o = service.users().messages().get(userId='me', id=m['id']).execute()
+    print(o)
+    #print(m['payload']['body'])
+
 
 
 
