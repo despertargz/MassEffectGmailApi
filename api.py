@@ -45,7 +45,7 @@ scope = 'https://www.googleapis.com/auth/gmail.readonly'
 #result = get_authorization_url('mev412@gmail.com', 'nope', 'secret.json', scope);
 
 
-authorization_code = '4/zvVI49bvFyNB54vfHwVOfl6SbWw1Qwi51aUuofwIchM'
+authorization_code = '4/ozJed-YcsbTBBUQgFSpxHkJumt5fGqcYugQXETJOTww'
 
 credential_file = 'credentials.json'
 secret_file = 'secret.json'
@@ -75,7 +75,6 @@ credentials = AccessTokenCredentials.from_json(credential_text)
 
 
 service = build_service(credentials)
-print(service)
 
 def get_labels(s):
    labels = s.users().labels().list(userId='me').execute().get('labels')
@@ -84,11 +83,13 @@ def get_labels(s):
 
 
 #get_labels(service)
+#exit(0);
 
 def get_messages(s):
-    result = service.users().messages().list(userId='me', labelIds='Label_39').execute()
+    result = service.users().messages().list(userId='me', labelIds='Label_56').execute()
     msgs = result.get('messages', [])
 
+    result = []
     for m in msgs:
         try:
             #print(m)
@@ -103,19 +104,23 @@ def get_messages(s):
                 print("Subject: " + subject[0])
                 print("-------------------------")
 
+                return_msg = {'subject': subject[0], 'body': ''} 
         
                 if payload['body']['size'] > 0:
                     print("Body")
                     decoded = base64.b64decode(payload['body']['data'])
-                    print(decoded)
+                    return_msg['body'] = decoded
+                    #print(decoded)
                         
 
                 for p in payload['parts']:
                     print("Parts")
                     if p['mimeType'] == 'text/plain':
                         decoded = base64.b64decode(p['body']['data'])
-                        print(decoded)
+                        return_msg['body'] = decoded
+                        #print(decoded)
 
+                result.append(return_msg)
                 #print("Object")
                 #print(o)
                 print()
@@ -126,10 +131,21 @@ def get_messages(s):
             print("error")
             print(e)
 
+    return result
 
 
 
 
-get_messages(service)
+
+msgs = get_messages(service)
+
+print('####################')
+print("Printing messages!")
+
+for m in msgs:
+    print(m['subject'])
+    print(m['body'])
+    print('------------------')
+    print()
 
 
