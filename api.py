@@ -41,11 +41,11 @@ def get_authorization_url(email_address, state, secret_file, scopes):
 
 
 REDIRECT_URL = 'http://googleapi.sonyar.info'
-scope = 'https://www.googleapis.com/auth/gmail.readonly'
+scope = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.readonly'
 #result = get_authorization_url('mev412@gmail.com', 'nope', 'secret.json', scope);
 
 
-authorization_code = '4/ozJed-YcsbTBBUQgFSpxHkJumt5fGqcYugQXETJOTww'
+authorization_code = '4/8-o1_fvzrI7HWtKU2nY8BFOj_MxB8DtojiZtu3X2DOw'
 
 credential_file = 'credentials.json'
 secret_file = 'secret.json'
@@ -66,7 +66,7 @@ def save_creds():
     f.close()
 
 # save credentials
-#save_creds()
+save_creds()
 
 # read credentials
 credential_text = open(credential_file).read()
@@ -91,20 +91,20 @@ def get_messages(s):
 
     result = []
     for m in msgs:
-        try:
-            #print(m)
+        o = service.users().messages().get(userId='me', id=m['id']).execute()
+        return_msg = {'subject': 'NO_SUBJECT', 'body': 'NO_BODY', 'id': o['id']} 
 
-            o = service.users().messages().get(userId='me', id=m['id']).execute()
+        try:
             print(o)
             payload = o['payload']
             subject = [x['value'] for x in o['payload']['headers'] if x['name'] == 'Subject']
+
 
             if len(subject) > 0:
                 print("-------------------------")
                 print("Subject: " + subject[0])
                 print("-------------------------")
-
-                return_msg = {'subject': subject[0], 'body': ''} 
+                return_msg['subject'] = subject[0]
         
                 if payload['body']['size'] > 0:
                     print("Body")
@@ -120,7 +120,6 @@ def get_messages(s):
                         return_msg['body'] = decoded
                         #print(decoded)
 
-                result.append(return_msg)
                 #print("Object")
                 #print(o)
                 print()
@@ -130,6 +129,8 @@ def get_messages(s):
         except Exception as e:
             print("error")
             print(e)
+
+        result.append(return_msg)
 
     return result
 
@@ -142,10 +143,18 @@ msgs = get_messages(service)
 print('####################')
 print("Printing messages!")
 
+ids = []
 for m in msgs:
+    print(m['id'])
     print(m['subject'])
     print(m['body'])
     print('------------------')
     print()
+    ids.append(m['id'])
 
+print("Press enter to trash all!")
+raw_input("")
+for m in msgs:
+    print("trashing..." + m['subject'])
+    service.users().messages().trash(userId='me', id=m['id']).execute()
 
