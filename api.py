@@ -3,8 +3,9 @@ from __future__ import print_function
 import httplib2
 import os
 import json
-
 import base64
+import sys
+
 from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
@@ -45,7 +46,7 @@ scope = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com
 #result = get_authorization_url('mev412@gmail.com', 'nope', 'secret.json', scope);
 
 
-authorization_code = '4/8-o1_fvzrI7HWtKU2nY8BFOj_MxB8DtojiZtu3X2DOw'
+authorization_code = '4/Jgo5Z3UpKNZ4fBX6bLhn-9P8DJOH089R55TpDwyGgLg'
 
 credential_file = 'credentials.json'
 secret_file = 'secret.json'
@@ -65,29 +66,42 @@ def save_creds():
     f.write(credentials.to_json())
     f.close()
 
-# save credentials
-save_creds()
 
-# read credentials
-credential_text = open(credential_file).read()
-credentials = AccessTokenCredentials.from_json(credential_text)
-#print(credentials)
-
-
-service = build_service(credentials)
 
 def get_labels(s):
-   labels = s.users().labels().list(userId='me').execute().get('labels')
-   for l in labels:
-       print(l['id'] + ": " + l['name'])
+    labels = s.users().labels().list(userId='me').execute().get('labels')
+    results = []
+    for l in labels:
+        results.append(l)
+    
+    return results
+    
+
+def get_label_id_from_name(s, name):
+    found = [ o['id'] for o in get_labels(s) if o['name'] == name ]
+    if len(found) == 1:
+        return found[0]
+    else:
+        raise Exception("Could not find label with name: " + name)
 
 
-#get_labels(service)
-#exit(0);
-
-def get_messages(s):
-    result = service.users().messages().list(userId='me', labelIds='Label_56').execute()
+def get_message_ids(service, label_id):
+    result = service.users().messages().list(userId='me', labelIds=label_id).execute()
     msgs = result.get('messages', [])
+    return [o['id'] for o in msgs]
+
+
+def get_thread_ids(service, label_id, pageToken='', maxResults=1000):
+    result = service.users().threads().list(userId='me', labelIds=label_id, pageToken=pageToken, maxResults=maxResults).execute()
+    msgs = result.get('threads', [])
+    nextPageToken = result.get('nextPageToken')
+
+    ids = [o['id'] for o in msgs]
+    return (ids, nextPageToken)
+
+
+def get_messages(service, label_id):
+    msgs = get_message_ids(service, label_id)
 
     result = []
     for m in msgs:
@@ -135,26 +149,57 @@ def get_messages(s):
     return result
 
 
+def trash_message(service, id):
+    service.users().messages().trash(userId='me', id=id).execute()
+
+# read credentials
+credential_text = open(credential_file).read()
+credentials = AccessTokenCredentials.from_json(credential_text)
+#print(credentials)
+
+
+service = build_service(credentials)
+
+label_name = sys.argv[1]
+label_id = get_label_id_from_name(service, label_name)
+
+
+#msgs = get_messages(service)
+#
+#print('####################')
+#print("Printing messages!")
+#
+#ids = []
+#for m in msgs:
+#    print(m['id'])
+#    print(m['subject'])
+#    print(m['body'])
+#    print('------------------')
+#    print()
+#    ids.append(m['id'])
+
+dry_run = 1
+pageToken = ''
+processed = 0
+max_results = 1000
+
+while (True):
+    (msgs, pageToken) = get_thread_ids(service, label_id, pageToken, max_results)
+    
+    print("Found " + str(len(msgs)) + " threads under the label: " + label_name)
+    #raw_input("Press enter to trash all.")
+
+    for m in msgs:
+        processed = processed + 1
+        if dry_run == True:
+            print("dry run, not trashing..." + str(m))
+        else:
+            print("trashing..." + str(m))
+            trash_message(service, m)
+
+    if pageToken is None: 
+        break
 
 
 
-msgs = get_messages(service)
-
-print('####################')
-print("Printing messages!")
-
-ids = []
-for m in msgs:
-    print(m['id'])
-    print(m['subject'])
-    print(m['body'])
-    print('------------------')
-    print()
-    ids.append(m['id'])
-
-print("Press enter to trash all!")
-raw_input("")
-for m in msgs:
-    print("trashing..." + m['subject'])
-    service.users().messages().trash(userId='me', id=m['id']).execute()
-
+print("COMPLETED! Processed " + str(processed) + " messages");
