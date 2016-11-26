@@ -1,6 +1,8 @@
 from __future__ import print_function
+
 import httplib2
 import os
+import sys
 
 from apiclient import discovery
 from oauth2client import client
@@ -14,22 +16,42 @@ from apiclient.discovery import build
 #4 - exchange code for credentials, credentials.to_json() and from_json() can be used to save and retrieve
 #5 - use credentials to authenticate and use gmail api
 
-def get_authorization_url(email_address, secret_file, scopes, redirect_url):
-    flow = client.flow_from_clientsecrets(secret_file, scopes)
-    flow.params['access_type'] = 'offline'
-    flow.params['approval_prompt'] = 'force'
-    flow.params['user_id'] = email_address
-    flow.params['state'] = 'nope'
+# cmdline args
+email_address = sys.argv[1]
+
+# constants
+secret_file = 'secret.json'
+credential_file = 'credentials.json'
+scope = 'https://www.googleapis.com/auth/gmail.modify'
+#scope = 'https://www.googleapis.com/auth/gmail.readonly'
+
+flow = client.flow_from_clientsecrets(secret_file, scope)
+flow.params['user_id'] = email_address
+flow.params['access_type'] = 'offline'
+flow.params['approval_prompt'] = 'force'
+flow.params['state'] = 'nope'
+
+
+def get_authorization_url(email_address, secret_file, redirect_url):
     return flow.step1_get_authorize_url(redirect_url)
+
+
+def save_creds(authorization_code):
+    credentials = flow.step2_exchange(authorization_code)
+    f = open(credential_file, 'w')
+    f.write(credentials.to_json())
+    f.close()
+
 
 
 redirect_url = 'http://googleapi.sonyar.info'
 
-#scope = 'https://www.googleapis.com/auth/gmail.readonly'
-scope = 'https://www.googleapis.com/auth/gmail.modify'
-
-url = get_authorization_url('mev412@gmail.com', 'secret.json', scope, redirect_url);
+url = get_authorization_url('mev412@gmail.com', scope, redirect_url);
 print(url)
+
+auth_code = raw_input("Navigate to above url in browser, grant permissions, after redirect paste the code from the query string: ")
+# save credentials
+save_creds(auth_code)
 
 
 

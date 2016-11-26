@@ -192,9 +192,9 @@ while (True):
     for m in msgs:
         processed = processed + 1
         if dry_run == True:
-            print("dry run, not trashing..." + str(m))
+            print(str(processed) + ". dry run, not trashing..." + str(m))
         else:
-            print("trashing..." + str(m))
+            print(str(processed) + ". trashing..." + str(m))
             trash_message(service, m)
 
     if pageToken is None: 
