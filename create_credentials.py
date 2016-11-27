@@ -22,8 +22,9 @@ email_address = sys.argv[1]
 # constants
 secret_file = 'secret.json'
 credential_file = 'credentials.json'
-scope = 'https://www.googleapis.com/auth/gmail.modify'
+#scope = 'https://www.googleapis.com/auth/gmail.modify'
 #scope = 'https://www.googleapis.com/auth/gmail.readonly'
+scope = 'https://mail.google.com'
 
 flow = client.flow_from_clientsecrets(secret_file, scope)
 flow.params['user_id'] = email_address
@@ -41,7 +42,6 @@ def save_creds(authorization_code):
     f = open(credential_file, 'w')
     f.write(credentials.to_json())
     f.close()
-
 
 
 redirect_url = 'http://googleapi.sonyar.info'

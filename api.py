@@ -10,62 +10,17 @@ from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
-from oauth2client.client import AccessTokenCredentials
+from oauth2client.client import AccessTokenCredentials, OAuth2Credentials
 
 from apiclient.discovery import build
 
 
 
 def build_service(credentials):
-  """Build a Gmail service object.
-
-  Args:
-    credentials: OAuth 2.0 credentials.
-
-  Returns:
-    Gmail service object.
-  """
   http = httplib2.Http()
   http = credentials.authorize(http)
+  #http = credentials.refresh(http)
   return build('gmail', 'v1', http=http)
-
-def get_authorization_url(email_address, state, secret_file, scopes):
-  """Retrieve the authorization URL.
-
-  Args:
-    email_address: User's e-mail address.
-    state: State for the authorization URL.
-  Returns:
-    Authorization URL to redirect the user to.
-  """
-  return flow.step1_get_authorize_url(REDIRECT_URL)
-
-
-REDIRECT_URL = 'http://googleapi.sonyar.info'
-scope = 'https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.readonly'
-#result = get_authorization_url('mev412@gmail.com', 'nope', 'secret.json', scope);
-
-
-authorization_code = '4/Jgo5Z3UpKNZ4fBX6bLhn-9P8DJOH089R55TpDwyGgLg'
-
-credential_file = 'credentials.json'
-secret_file = 'secret.json'
-email_address = 'mev412@gmail.com'
-state='nope'
-
-flow = client.flow_from_clientsecrets(secret_file, scope)
-flow.params['access_type'] = 'offline'
-flow.params['approval_prompt'] = 'force'
-flow.params['user_id'] = email_address
-flow.params['state'] = state
-flow.redirect_uri = 'http://googleapi.sonyar.info'
-
-def save_creds():
-    credentials = flow.step2_exchange(authorization_code)
-    f = open(credential_file, 'w')
-    f.write(credentials.to_json())
-    f.close()
-
 
 
 def get_labels(s):
@@ -149,12 +104,16 @@ def get_messages(service, label_id):
     return result
 
 
-def trash_message(service, id):
-    service.users().messages().trash(userId='me', id=id).execute()
+def trash_thread(service, id):
+    service.users().threads().trash(userId='me', id=id).execute()
+
+def delete_thread(service, id):
+    service.users().threads().delete(userId='me', id=id).execute()
 
 # read credentials
+credential_file = 'credentials.json'
 credential_text = open(credential_file).read()
-credentials = AccessTokenCredentials.from_json(credential_text)
+credentials = OAuth2Credentials.from_json(credential_text)
 #print(credentials)
 
 
@@ -162,6 +121,52 @@ service = build_service(credentials)
 
 label_name = sys.argv[1]
 label_id = get_label_id_from_name(service, label_name)
+
+
+processed = 0
+page_limit = 500
+total_limit = 5000
+pageToken = ''
+mode = 'delete'
+errors = 0
+
+while (True):
+    (thread_ids, pageToken) = get_thread_ids(service, label_id, pageToken, page_limit)
+    
+    print("Found " + str(len(thread_ids)) + " threads under the label: " + label_name)
+    #raw_input("Press enter to trash all.")
+
+    for thread_id in thread_ids:
+        try:
+            processed = processed + 1
+
+            if mode == 'dryrun':
+                print(str(processed) + ". Dry run..." + str(thread_id))
+            elif mode == 'trash':
+                print(str(processed) + ". Trashing..." + str(thread_id))
+                trash_thread(service, thread_id)
+            elif mode == 'delete':
+                print(str(processed) + ". Deleting..." + str(thread_id))
+                delete_thread(service, thread_id)
+
+        except Exception as e:
+            errors = errors + 1
+            print("Error for thread: " + thread_id)
+            print(e)
+
+    if processed >= total_limit:
+        break
+
+    if pageToken is None: 
+        break
+
+
+
+print("COMPLETED! Processed " + str(processed) + " messages");
+if errors > 0:
+    print("Errors: " + str(errors))
+
+
 
 
 #msgs = get_messages(service)
@@ -177,29 +182,3 @@ label_id = get_label_id_from_name(service, label_name)
 #    print('------------------')
 #    print()
 #    ids.append(m['id'])
-
-dry_run = 1
-pageToken = ''
-processed = 0
-max_results = 1000
-
-while (True):
-    (msgs, pageToken) = get_thread_ids(service, label_id, pageToken, max_results)
-    
-    print("Found " + str(len(msgs)) + " threads under the label: " + label_name)
-    #raw_input("Press enter to trash all.")
-
-    for m in msgs:
-        processed = processed + 1
-        if dry_run == True:
-            print(str(processed) + ". dry run, not trashing..." + str(m))
-        else:
-            print(str(processed) + ". trashing..." + str(m))
-            trash_message(service, m)
-
-    if pageToken is None: 
-        break
-
-
-
-print("COMPLETED! Processed " + str(processed) + " messages");
