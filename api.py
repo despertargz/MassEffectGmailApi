@@ -18,8 +18,8 @@ from apiclient.discovery import build
 
 def build_service(credentials):
   http = httplib2.Http()
+  credentials.refresh(http)
   http = credentials.authorize(http)
-  #http = credentials.refresh(http)
   return build('gmail', 'v1', http=http)
 
 
