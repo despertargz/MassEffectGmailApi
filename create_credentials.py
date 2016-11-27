@@ -50,8 +50,5 @@ url = get_authorization_url('mev412@gmail.com', scope, redirect_url);
 print(url)
 
 auth_code = raw_input("Navigate to above url in browser, grant permissions, after redirect paste the code from the query string: ")
-# save credentials
 save_creds(auth_code)
-
-
 
