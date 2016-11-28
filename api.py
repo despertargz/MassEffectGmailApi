@@ -121,16 +121,20 @@ service = build_service(credentials)
 
 label_name = sys.argv[1]
 mode = sys.argv[2] # delete, trash, dryrun
-label_id = get_label_id_from_name(service, label_name)
+total_limit = int(sys.argv[3])
 
+label_id = get_label_id_from_name(service, label_name)
 
 processed = 0
 page_limit = 500
-total_limit = 5000
 pageToken = ''
 errors = 0
+done = False
 
 while (True):
+    if pageToken is None or done == True: 
+        break
+
     (thread_ids, pageToken) = get_thread_ids(service, label_id, pageToken, page_limit)
     
     print("Found " + str(len(thread_ids)) + " threads under the label: " + label_name)
@@ -155,31 +159,17 @@ while (True):
             print("Error for thread: " + thread_id)
             print(e)
 
-    if processed >= total_limit:
-        break
-
-    if pageToken is None: 
-        break
+        
+        if processed >= total_limit:
+            done = True
+            break
 
 
 
 print("COMPLETED! Processed " + str(processed) + " messages");
+
 if errors > 0:
     print("Errors: " + str(errors))
 
 
 
-
-#msgs = get_messages(service)
-#
-#print('####################')
-#print("Printing messages!")
-#
-#ids = []
-#for m in msgs:
-#    print(m['id'])
-#    print(m['subject'])
-#    print(m['body'])
-#    print('------------------')
-#    print()
-#    ids.append(m['id'])
