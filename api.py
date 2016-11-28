@@ -18,7 +18,7 @@ from apiclient.discovery import build
 
 def build_service(credentials):
   http = httplib2.Http()
-  credentials.refresh(http)
+  #credentials.refresh(http) # may be needed
   http = credentials.authorize(http)
   return build('gmail', 'v1', http=http)
 
@@ -120,6 +120,7 @@ credentials = OAuth2Credentials.from_json(credential_text)
 service = build_service(credentials)
 
 label_name = sys.argv[1]
+mode = sys.argv[2] # delete, trash, dryrun
 label_id = get_label_id_from_name(service, label_name)
 
 
@@ -127,7 +128,6 @@ processed = 0
 page_limit = 500
 total_limit = 5000
 pageToken = ''
-mode = 'delete'
 errors = 0
 
 while (True):
@@ -140,14 +140,15 @@ while (True):
         try:
             processed = processed + 1
 
-            if mode == 'dryrun':
-                print(str(processed) + ". Dry run..." + str(thread_id))
-            elif mode == 'trash':
+            if mode == 'trash':
                 print(str(processed) + ". Trashing..." + str(thread_id))
                 trash_thread(service, thread_id)
             elif mode == 'delete':
                 print(str(processed) + ". Deleting..." + str(thread_id))
                 delete_thread(service, thread_id)
+            else:
+                print(str(processed) + ". Dry run..." + str(thread_id))
+
 
         except Exception as e:
             errors = errors + 1
