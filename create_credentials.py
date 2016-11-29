@@ -25,6 +25,8 @@ credential_file = 'credentials.json'
 #scope = 'https://www.googleapis.com/auth/gmail.modify'
 #scope = 'https://www.googleapis.com/auth/gmail.readonly'
 scope = 'https://mail.google.com'
+#redirect_url = 'http://googleapi.sonyar.info'
+redirect_url = 'http://127.0.0.1:1337'
 
 flow = client.flow_from_clientsecrets(secret_file, scope)
 flow.params['user_id'] = email_address
@@ -43,8 +45,6 @@ def save_creds(authorization_code):
     f.write(credentials.to_json())
     f.close()
 
-
-redirect_url = 'http://googleapi.sonyar.info'
 
 url = get_authorization_url('mev412@gmail.com', scope, redirect_url);
 print(url)

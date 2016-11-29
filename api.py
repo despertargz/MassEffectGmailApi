@@ -10,7 +10,7 @@ from apiclient import discovery
 from oauth2client import client
 from oauth2client import tools
 from oauth2client.file import Storage
-from oauth2client.client import AccessTokenCredentials, OAuth2Credentials
+from oauth2client.client import OAuth2Credentials
 
 from apiclient.discovery import build
 
@@ -18,7 +18,6 @@ from apiclient.discovery import build
 
 def build_service(credentials):
   http = httplib2.Http()
-  #credentials.refresh(http) # may be needed
   http = credentials.authorize(http)
   return build('gmail', 'v1', http=http)
 
