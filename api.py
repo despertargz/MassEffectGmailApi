@@ -73,44 +73,7 @@ def get_messages(service, label_id):
     result = []
     for m in msgs:
         o = get_message(service, m)
-        return_msg = {'subject': 'NO_SUBJECT', 'body': 'NO_BODY', 'id': o['id']} 
-
-        try:
-            print(o)
-            payload = o['payload']
-            subject = [x['value'] for x in o['payload']['headers'] if x['name'] == 'Subject']
-
-
-            if len(subject) > 0:
-                print("-------------------------")
-                print("Subject: " + subject[0])
-                print("-------------------------")
-                return_msg['subject'] = subject[0]
-        
-                if payload['body']['size'] > 0:
-                    print("Body")
-                    decoded = base64.b64decode(payload['body']['data'])
-                    return_msg['body'] = decoded
-                    #print(decoded)
-                        
-
-                for p in payload['parts']:
-                    print("Parts")
-                    if p['mimeType'] == 'text/plain':
-                        decoded = base64.b64decode(p['body']['data'])
-                        return_msg['body'] = decoded
-                        #print(decoded)
-
-                #print("Object")
-                #print(o)
-                print()
-                print()
-                
-                #print(m['payload']['body'])
-        except Exception as e:
-            print("error")
-            print(e)
-
+     
         result.append(return_msg)
 
     return result
@@ -122,7 +85,7 @@ def trash_thread(service, id):
 def delete_thread(service, id):
     service.users().threads().delete(userId='me', id=id).execute()
 
-def get_all_messages(service, label):
+def get_all_messages(service, label, limit):
     pageToken = ''
     msgs = []
 
@@ -133,7 +96,7 @@ def get_all_messages(service, label):
     all_ids = []
     total = 0
     while (True):
-        if pageToken is None:
+        if pageToken is None or total >= limit:
             break
 
         (msg_ids, pageToken) = get_message_ids(service, label, pageToken)
@@ -149,20 +112,51 @@ def get_all_messages(service, label):
 
     return msgs
 
-   
+def parse_message(o):
+    return_msg = {'subject': 'NO_SUBJECT', 'body': 'NO_BODY', 'id': o['id']} 
+
+    try:
+        payload = o['payload']
+        subject = [x['value'] for x in o['payload']['headers'] if x['name'] == 'Subject']
+
+        if len(subject) > 0:
+            return_msg['subject'] = subject[0]
+    
+        if 'parts' in payload:
+            for p in payload['parts']:
+                #print("Parts")
+                if p['mimeType'] == 'text/plain':
+                    decoded = base64.b64decode(p['body']['data'])
+                    return_msg['body'] = decoded
 
 
-# read credentials
+        if payload['body']['size'] > 0:
+            #print("Body")
+            decoded = base64.b64decode(payload['body']['data'])
+            return_msg['body'] = decoded
+
+    except Exception as e:
+        pass
+        #print("error")
+        #print(e)
+
+    return return_msg
+
+
+def parse_messages(msgs):
+    result = []
+    for m in msgs:
+        result.append(parse_message(m))       
+
+    return result
+
+
 credential_file = 'credentials.json'
 credential_text = open(credential_file).read()
 credentials = OAuth2Credentials.from_json(credential_text)
-#print(credentials)
-
-
 service = build_service(credentials)
-get_message_ids(service, 'Crons')
 
-#args
+#cmdline args
 #label_name = sys.argv[1]
 #mode = sys.argv[2] # delete, trash, dryrun
 #total_limit = int(sys.argv[3])
@@ -225,40 +219,20 @@ def get_threads():
         print("Errors: " + str(errors))
 
 
-msgs = get_all_messages(service, 'Crons')
-for m in msgs:
-    print(m)
-
+msgs = get_all_messages(service, 'Crons', 1000000)
 print(str(len(msgs)))
 
-# msgs = []
-# def cb(rid,res,exp):
-#     if exp is None:
-#         subject = [x['value'] for x in res['payload']['headers'] if x['name'] == 'Subject']
-#         if len(subject) > 0:
-#             msgs.append(subject[0])
-#     else:
-#         print("Err")
-#         print(exp)
+msgs = parse_messages(msgs)
+results = {}
+for m in msgs:
+    subject = m['subject']
+    print(subject)
+    if subject in results:
+        results[subject] = results[subject] + 1
+    else:
+        results[subject] = 1
 
-# (ids,token) = get_message_ids(service, 'Crons')
-# b = create_batch(cb)
+for k,v in results.iteritems():
+    print(str(v) + ": " + k)
 
-# for id in ids:
-#     print(id)
-#     b.add(service.users().messages().get(userId='me', id=id))
-
-# execute_batch(credentials, b)
-
-# results = {}
-# for m in msgs:
-#     if m not in results:
-#         results[m] = 1
-#     else:
-#         results[m] = results[m] + 1
-
-
-# for k,v in results.iteritems():
-#     print(str(v) + ": " + k)
-
-# #print("len: " + str(len(msgs)))
+    
