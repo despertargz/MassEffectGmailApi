@@ -122,8 +122,35 @@ def trash_thread(service, id):
 def delete_thread(service, id):
     service.users().threads().delete(userId='me', id=id).execute()
 
-def batch_delete_messages(service, ids):
-    service.users().messages().batchDelete(userId='me', ids=[]).execute()
+def get_all_messages(service, label):
+    pageToken = ''
+    msgs = []
+
+    def callback(i, r, e):
+        if e is None:
+            msgs.append(r)
+
+    all_ids = []
+    total = 0
+    while (True):
+        if pageToken is None:
+            break
+
+        (msg_ids, pageToken) = get_message_ids(service, label, pageToken)
+
+        print("total..." + str(total))
+        batch = create_batch(callback)
+        for id in msg_ids:
+            total = total + 1
+            batch.add(service.users().messages().get(userId='me', id=id))
+
+        print("executing batch...")
+        execute_batch(credentials, batch)
+
+    return msgs
+
+   
+
 
 # read credentials
 credential_file = 'credentials.json'
@@ -134,7 +161,6 @@ credentials = OAuth2Credentials.from_json(credential_text)
 
 service = build_service(credentials)
 get_message_ids(service, 'Crons')
-
 
 #args
 #label_name = sys.argv[1]
@@ -199,34 +225,40 @@ def get_threads():
         print("Errors: " + str(errors))
 
 
-msgs = []
-def cb(rid,res,exp):
-    if exp is None:
-        subject = [x['value'] for x in res['payload']['headers'] if x['name'] == 'Subject']
-        if len(subject) > 0:
-            msgs.append(subject[0])
-    else:
-        print("Err")
-        print(exp)
-
-(ids,token) = get_message_ids(service, 'Crons')
-b = create_batch(cb)
-
-for id in ids:
-    print(id)
-    b.add(service.users().messages().get(userId='me', id=id))
-
-execute_batch(credentials, b)
-
-results = {}
+msgs = get_all_messages(service, 'Crons')
 for m in msgs:
-    if m not in results:
-        results[m] = 1
-    else:
-        results[m] = results[m] + 1
+    print(m)
+
+print(str(len(msgs)))
+
+# msgs = []
+# def cb(rid,res,exp):
+#     if exp is None:
+#         subject = [x['value'] for x in res['payload']['headers'] if x['name'] == 'Subject']
+#         if len(subject) > 0:
+#             msgs.append(subject[0])
+#     else:
+#         print("Err")
+#         print(exp)
+
+# (ids,token) = get_message_ids(service, 'Crons')
+# b = create_batch(cb)
+
+# for id in ids:
+#     print(id)
+#     b.add(service.users().messages().get(userId='me', id=id))
+
+# execute_batch(credentials, b)
+
+# results = {}
+# for m in msgs:
+#     if m not in results:
+#         results[m] = 1
+#     else:
+#         results[m] = results[m] + 1
 
 
-for k,v in results.iteritems():
-    print(str(v) + ": " + k)
+# for k,v in results.iteritems():
+#     print(str(v) + ": " + k)
 
-#print("len: " + str(len(msgs)))
+# #print("len: " + str(len(msgs)))
