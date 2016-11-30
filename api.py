@@ -13,14 +13,17 @@ from oauth2client.file import Storage
 from oauth2client.client import OAuth2Credentials
 
 from apiclient.discovery import build
+from apiclient.http import BatchHttpRequest
 
 
-
-def build_service(credentials):
+def get_http(creds):
   http = httplib2.Http()
   http = credentials.authorize(http)
-  return build('gmail', 'v1', http=http)
+  return http
 
+def build_service(credentials):
+  http = get_http(credentials)
+  return build('gmail', 'v1', http=http)
 
 def get_labels(s):
     labels = s.users().labels().list(userId='me').execute().get('labels')
@@ -30,7 +33,6 @@ def get_labels(s):
     
     return results
     
-
 def get_label_id_from_name(s, name):
     found = [ o['id'] for o in get_labels(s) if o['name'] == name ]
     if len(found) == 1:
@@ -38,14 +40,16 @@ def get_label_id_from_name(s, name):
     else:
         raise Exception("Could not find label with name: " + name)
 
-
-def get_message_ids(service, label_id):
-    result = service.users().messages().list(userId='me', labelIds=label_id).execute()
+def get_message_ids(service, label_name, pageToken='', maxResults=500):
+    label_id = get_label_id_from_name(service, label_name)
+    result = service.users().messages().list(userId='me', labelIds=label_id, pageToken=pageToken, maxResults=maxResults).execute()
     msgs = result.get('messages', [])
-    return [o['id'] for o in msgs]
+    nextPageToken = result.get('nextPageToken')
 
+    ids = [o['id'] for o in msgs]
+    return (ids, nextPageToken)
 
-def get_thread_ids(service, label_id, pageToken='', maxResults=1000):
+def get_thread_ids(service, label_id, pageToken='', maxResults=500):
     result = service.users().threads().list(userId='me', labelIds=label_id, pageToken=pageToken, maxResults=maxResults).execute()
     msgs = result.get('threads', [])
     nextPageToken = result.get('nextPageToken')
@@ -53,13 +57,22 @@ def get_thread_ids(service, label_id, pageToken='', maxResults=1000):
     ids = [o['id'] for o in msgs]
     return (ids, nextPageToken)
 
+def create_batch(callback):
+    return service.new_batch_http_request(callback=callback)
+
+def execute_batch(creds, batch):
+    http = get_http(creds)
+    return batch.execute(http=http)
+
+def get_message(service, id):
+    return service.users().messages().get(userId='me', id=id).execute()
 
 def get_messages(service, label_id):
     msgs = get_message_ids(service, label_id)
 
     result = []
     for m in msgs:
-        o = service.users().messages().get(userId='me', id=m['id']).execute()
+        o = get_message(service, m)
         return_msg = {'subject': 'NO_SUBJECT', 'body': 'NO_BODY', 'id': o['id']} 
 
         try:
@@ -109,6 +122,9 @@ def trash_thread(service, id):
 def delete_thread(service, id):
     service.users().threads().delete(userId='me', id=id).execute()
 
+def batch_delete_messages(service, ids):
+    service.users().messages().batchDelete(userId='me', ids=[]).execute()
+
 # read credentials
 credential_file = 'credentials.json'
 credential_text = open(credential_file).read()
@@ -117,58 +133,100 @@ credentials = OAuth2Credentials.from_json(credential_text)
 
 
 service = build_service(credentials)
-
-label_name = sys.argv[1]
-mode = sys.argv[2] # delete, trash, dryrun
-total_limit = int(sys.argv[3])
-
-label_id = get_label_id_from_name(service, label_name)
-
-processed = 0
-page_limit = 500
-pageToken = ''
-errors = 0
-done = False
-
-while (True):
-    if pageToken is None or done == True: 
-        break
-
-    (thread_ids, pageToken) = get_thread_ids(service, label_id, pageToken, page_limit)
-    
-    print("Found " + str(len(thread_ids)) + " threads under the label: " + label_name)
-    #raw_input("Press enter to trash all.")
-
-    for thread_id in thread_ids:
-        try:
-            processed = processed + 1
-
-            if mode == 'trash':
-                print(str(processed) + ". Trashing..." + str(thread_id))
-                trash_thread(service, thread_id)
-            elif mode == 'delete':
-                print(str(processed) + ". Deleting..." + str(thread_id))
-                delete_thread(service, thread_id)
-            else:
-                print(str(processed) + ". Dry run..." + str(thread_id))
+get_message_ids(service, 'Crons')
 
 
-        except Exception as e:
-            errors = errors + 1
-            print("Error for thread: " + thread_id)
-            print(e)
+#args
+#label_name = sys.argv[1]
+#mode = sys.argv[2] # delete, trash, dryrun
+#total_limit = int(sys.argv[3])
 
-        
-        if processed >= total_limit:
-            done = True
+def get_threads():
+    processed = 0
+    page_limit = 500
+    pageToken = ''
+    errors = 0
+    done = False
+
+
+    id_list = []
+    while (True):
+        if pageToken is None or done == True: 
             break
 
+        (thread_ids, pageToken) = get_message_ids(service, label_id, pageToken, page_limit)
+        
+        print("Found " + str(len(thread_ids)) + " threads under the label: " + label_name)
+        #raw_input("Press enter to trash all.")
+
+        for thread_id in thread_ids:
+            try:
+                processed = processed + 1
+                id_list.append(thread_id)
+
+                if mode == 'trash':
+                    print(str(processed) + ". Trashing..." + str(thread_id))
+                    trash_thread(service, thread_id)
+                elif mode == 'delete':
+                    print(str(processed) + ". Deleting..." + str(thread_id))
+                    delete_thread(service, thread_id)
+                elif mode == 'batchdelete':
+                    pass
+                else:
+                    print(str(processed) + ". Dry run..." + str(thread_id))
 
 
-print("COMPLETED! Processed " + str(processed) + " messages");
+            except Exception as e:
+                errors = errors + 1
+                print("Error for thread: " + thread_id)
+                print(e)
 
-if errors > 0:
-    print("Errors: " + str(errors))
+            if processed >= total_limit:
+                done = True
+                break
+        
+
+
+    if mode == 'batchdelete':
+        print("Batch Deleting..." + str(len(id_list)) + " messages")
+        batch_delete_messages(service, id_list)
 
 
 
+    print("COMPLETED! Processed " + str(processed) + " messages");
+
+    if errors > 0:
+        print("Errors: " + str(errors))
+
+
+msgs = []
+def cb(rid,res,exp):
+    if exp is None:
+        subject = [x['value'] for x in res['payload']['headers'] if x['name'] == 'Subject']
+        if len(subject) > 0:
+            msgs.append(subject[0])
+    else:
+        print("Err")
+        print(exp)
+
+(ids,token) = get_message_ids(service, 'Crons')
+b = create_batch(cb)
+
+for id in ids:
+    print(id)
+    b.add(service.users().messages().get(userId='me', id=id))
+
+execute_batch(credentials, b)
+
+results = {}
+for m in msgs:
+    if m not in results:
+        results[m] = 1
+    else:
+        results[m] = results[m] + 1
+
+
+for k,v in results.iteritems():
+    print(str(v) + ": " + k)
+
+#print("len: " + str(len(msgs)))
