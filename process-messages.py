@@ -199,7 +199,6 @@ def process_messages():
         #raw_input("Press enter to trash all.")
 
         if mode == "delete":
-            print("Batch Deleting..." + str(len(thread_ids)) + " messages")
             batch_delete_messages(service, thread_ids)
             processed = processed + len(thread_ids)
 
@@ -207,31 +206,33 @@ def process_messages():
                 done = True
                 break
 
-        else:
 
-            for thread_id in thread_ids:
-                try:
-                    processed = processed + 1
-                    id_list.append(thread_id)
+        for thread_id in thread_ids:
+            try:
+                processed = processed + 1
+                id_list.append(thread_id)
 
-                    if mode == 'trash':
-                        print(str(processed) + ". Trashing..." + str(thread_id))
-                        trash_thread(service, thread_id)
-                    elif mode == 'single-delete':
-                        print(str(processed) + ". Deleting..." + str(thread_id))
-                        delete_message(service, thread_id)
-                    else:
-                        print(str(processed) + ". Dry run..." + str(thread_id))
+                if mode == 'trash':
+                    print(str(processed) + ". Trashing..." + str(thread_id))
+                    trash_thread(service, thread_id)
+                elif mode == 'single-delete':
+                    print(str(processed) + ". Deleting..." + str(thread_id))
+                    delete_message(service, thread_id)
+                elif mode == "delete":
+                    print("Batch deleted: " + thread_id)
+                else:
+                    print(str(processed) + ". Dry run..." + str(thread_id))
 
-                except Exception as e:
-                    errors = errors + 1
-                    print("Error for thread: " + thread_id)
-                    print(e)
+            except Exception as e:
+                errors = errors + 1
+                print("Error for thread: " + thread_id)
+                print(e)
 
-                if processed >= total_limit:
-                    done = True
-                    break
+            if processed >= total_limit:
+                done = True
+                break
         
+        print("Processed: " + str(processed))
 
 
     print("COMPLETED! Processed " + str(processed) + " messages");
