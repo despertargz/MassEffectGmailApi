@@ -22,21 +22,18 @@ email_address = sys.argv[1]
 # constants
 secret_file = 'secret.json'
 credential_file = 'credentials.json'
+scope = 'https://mail.google.com'
+redirect_url = 'http://googleapi.sonyar.info'
+
+#redirect_url = 'http://127.0.0.1:1337'
 #scope = 'https://www.googleapis.com/auth/gmail.modify'
 #scope = 'https://www.googleapis.com/auth/gmail.readonly'
-scope = 'https://mail.google.com'
-#redirect_url = 'http://googleapi.sonyar.info'
-redirect_url = 'http://127.0.0.1:1337'
 
 flow = client.flow_from_clientsecrets(secret_file, scope)
 flow.params['user_id'] = email_address
 flow.params['access_type'] = 'offline'
 flow.params['approval_prompt'] = 'force'
 flow.params['state'] = 'nope'
-
-
-def get_authorization_url(email_address, secret_file, redirect_url):
-    return flow.step1_get_authorize_url(redirect_url)
 
 
 def save_creds(authorization_code):
@@ -46,7 +43,7 @@ def save_creds(authorization_code):
     f.close()
 
 
-url = get_authorization_url('mev412@gmail.com', scope, redirect_url);
+url = flow.step1_get_authorize_url(redirect_url)
 print(url)
 
 auth_code = raw_input("Navigate to above url in browser, grant permissions, after redirect paste the code from the query string: ")
