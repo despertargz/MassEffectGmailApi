@@ -42,7 +42,7 @@ def get_label_id_from_name(s, name):
 
 def get_message_ids(service, label_name, pageToken='', maxResults=500):
     label_id = get_label_id_from_name(service, label_name)
-    result = service.users().messages().list(userId='me', labelIds=label_id, pageToken=pageToken, maxResults=maxResults).execute()
+    result = service.users().messages().list(userId='me', labelIds=label_id, pageToken=pageToken, maxResults=maxResults, q='newer_than:1d').execute()
     msgs = result.get('messages', [])
     nextPageToken = result.get('nextPageToken')
 
@@ -220,19 +220,27 @@ def get_threads():
 
 
 msgs = get_all_messages(service, 'Crons', 1000000)
-print(str(len(msgs)))
+print("msgs: " + str(len(msgs)))
 
-msgs = parse_messages(msgs)
+parsed = parse_messages(msgs)
+print("parsed: " + str(len(parsed)))
+
 results = {}
-for m in msgs:
+for m in parsed:
     subject = m['subject']
-    print(subject)
+    #print(subject)
     if subject in results:
         results[subject] = results[subject] + 1
     else:
         results[subject] = 1
 
+result_total = 0
 for k,v in results.iteritems():
     print(str(v) + ": " + k)
+    result_total = result_total + v
+
+sorted(results.iteritems(), lambda x: x[0], reverse=True)
+
+print("result total: " + str(result_total))
 
     
