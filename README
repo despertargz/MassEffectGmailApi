@@ -1,3 +1,5 @@
+download secret.json
+
 create credentials
     python create_credentials.py <email>
     copy link into browser
