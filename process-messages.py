@@ -119,7 +119,6 @@ def batch_delete_messages(service, ids):
         for id in ids:
             batch.add(service.users().messages().delete(userId='me', id=id))
 
-        print("executing batch...")
         execute_batch(credentials, batch)
     
 
@@ -169,7 +168,7 @@ service = build_service(credentials)
 
 def process_messages():
     processed = 0
-    page_limit = 500
+    page_limit = 1000
     pageToken = ''
     errors = 0
     done = False
@@ -195,16 +194,17 @@ def process_messages():
 
         (thread_ids, pageToken) = get_message_ids(service, query, pageToken, page_limit)
         
-        print("Found " + str(len(thread_ids)) + " messages found")
+        #print("Found " + str(len(thread_ids)) + " messages")
         #raw_input("Press enter to trash all.")
 
         if mode == "delete":
+            print("Deleting batch of " + str(len(thread_ids)))
             batch_delete_messages(service, thread_ids)
-            processed = processed + len(thread_ids)
+            #processed = processed + len(thread_ids)
 
-            if processed >= total_limit:
-                done = True
-                break
+            #if processed >= total_limit:
+                #done = True
+                #break
 
 
         for thread_id in thread_ids:
@@ -219,7 +219,7 @@ def process_messages():
                     print(str(processed) + ". Deleting..." + str(thread_id))
                     delete_message(service, thread_id)
                 elif mode == "delete":
-                    print("Batch deleted: " + thread_id)
+                    print("Deleted: " + thread_id)
                 else:
                     print(str(processed) + ". Dry run..." + str(thread_id))
 
