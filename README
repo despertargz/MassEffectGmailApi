@@ -1,14 +1,18 @@
 download secret.json
 
 create credentials
-    python create_credentials.py <email>
-    copy link into browser
-    give app permissions
-    copy code into terminal prompt
-
-python process-messages.py <mode> <gmail_query> <limit>
-    mode=dryrun|delete|trash
+    > python create_credentials.py <email>
+    * copy link into browser
+    * give app permissions
+    * copy code into terminal prompt
 
 
+run script
+    > format: python process-messages.py <mode> <gmail_query> <limit> <batch_size> -- mode=dryrun|delete|trash
+    * example: python process-messages.py delete "in:trash" 100 5
+
+
+NOTES:
+-----
 uses python2
 you can run process-messages.py multiple times after creating credentials until they exire
