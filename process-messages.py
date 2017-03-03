@@ -5,6 +5,7 @@ import os
 import json
 import base64
 import sys
+import time
 
 from apiclient import discovery
 from oauth2client import client
@@ -49,8 +50,8 @@ def get_message_ids(service, query, pageToken='', maxResults=500):
     ids = [o['id'] for o in msgs]
     return (ids, nextPageToken)
 
-def get_thread_ids(service, label_id, pageToken='', maxResults=500):
-    result = service.users().threads().list(userId='me', labelIds=label_id, pageToken=pageToken, maxResults=maxResults).execute()
+def get_thread_ids(service, query, pageToken='', maxResults=500):
+    result = service.users().threads().list(userId='me', q=query, pageToken=pageToken, maxResults=maxResults).execute()
     msgs = result.get('threads', [])
     nextPageToken = result.get('nextPageToken')
 
@@ -120,6 +121,28 @@ def batch_delete_messages(service, ids):
             batch.add(service.users().messages().delete(userId='me', id=id))
 
         execute_batch(credentials, batch)
+
+def batch_delete_threads(service, ids, batch_size):
+        def callback(i,r,e):
+            if e is not None:
+                print("An error occurred | " + str(i) + " | " + str(r) + " | " + str(e))
+              
+
+        count = 0
+        total = len(ids)
+
+        while True:
+            sliced = ids[count:count+batch_size]
+            batch = create_batch(callback)
+
+            for id in sliced:
+                count = count + 1
+                batch.add(service.users().threads().delete(userId='me', id=id))
+
+            print("Executing batch..." + str(count) + " / " + str(total))
+            execute_batch(credentials, batch)
+            if count >= total:
+                break
     
 
 def parse_message(o):
@@ -182,6 +205,7 @@ def process_messages():
 
     query = sys.argv[2]
     total_limit = int(sys.argv[3])
+    batch_size = int(sys.argv[4])
 
     if total_limit < page_limit:
         page_limit = total_limit
@@ -192,19 +216,17 @@ def process_messages():
         if pageToken is None or done == True: 
             break
 
-        (thread_ids, pageToken) = get_message_ids(service, query, pageToken, page_limit)
+        #(thread_ids, pageToken) = get_message_ids(service, query, pageToken, page_limit)
+        (thread_ids, pageToken) = get_thread_ids(service, query, pageToken, page_limit)
         
         #print("Found " + str(len(thread_ids)) + " messages")
         #raw_input("Press enter to trash all.")
 
         if mode == "delete":
             print("Deleting batch of " + str(len(thread_ids)))
-            batch_delete_messages(service, thread_ids)
-            #processed = processed + len(thread_ids)
-
-            #if processed >= total_limit:
-                #done = True
-                #break
+            #batch_delete_messages(service, thread_ids)
+            batch_delete_threads(service, thread_ids, batch_size)
+            time.sleep(5)
 
 
         for thread_id in thread_ids:
@@ -219,7 +241,8 @@ def process_messages():
                     print(str(processed) + ". Deleting..." + str(thread_id))
                     delete_message(service, thread_id)
                 elif mode == "delete":
-                    print("Deleted: " + thread_id)
+                    pass
+                    #print("Deleted: " + thread_id)
                 else:
                     print(str(processed) + ". Dry run..." + str(thread_id))
 
