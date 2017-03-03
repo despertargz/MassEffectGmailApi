@@ -200,7 +200,7 @@ def process_messages():
     mode = sys.argv[1] # delete, trash, dryrun
 
     if mode == "help":
-        print("python2 api.py <mode> <query> <limit> (mode=delete|trash|dryrun)")
+        print("python2 api.py <mode> <query> <limit> <batch_size> \n(mode=delete|trash|dryrun)\nsafe batch size is 5-10")
         exit(0)
 
     query = sys.argv[2]
